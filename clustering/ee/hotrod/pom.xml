@@ -28,19 +28,23 @@
 
     <parent>
         <groupId>org.wildfly</groupId>
-        <artifactId>wildfly-clustering</artifactId>
+        <artifactId>wildfly-clustering-ee</artifactId>
         <version>11.0.0.Alpha1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>wildfly-clustering-ee</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>wildfly-clustering-ee-hotrod</artifactId>
+    <packaging>jar</packaging>
 
-    <name>WildFly: EE clustering</name>
+    <name>WildFly: EE clustering - HotRod service provider</name>
 
-    <modules>
-        <module>spi</module>
-        <module>hotrod</module>
-        <module>infinispan</module>
-    </modules>
-
+    <dependencies>
+        <dependency>
+            <groupId>org.wildfly</groupId>
+            <artifactId>wildfly-clustering-ee-spi</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.infinispan</groupId>
+            <artifactId>infinispan-client-hotrod</artifactId>
+        </dependency>
+    </dependencies>
 </project>

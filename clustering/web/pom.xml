@@ -41,6 +41,7 @@
         <module>api</module>
         <module>spi</module>
         <module>undertow</module>
+        <module>hotrod</module>
         <module>infinispan</module>
     </modules>
 
