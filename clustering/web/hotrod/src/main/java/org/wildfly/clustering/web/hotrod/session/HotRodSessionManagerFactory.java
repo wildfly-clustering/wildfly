@@ -73,7 +73,7 @@ public class HotRodSessionManagerFactory<C extends Marshallability> implements S
     }
 
     private <L> SessionFactory<?, ?, ?, L> createSessionFactory(LocalContextFactory<L> localContextFactory) {
-        SessionMetaDataFactory<HotRodSessionMetaData<UUID, L>, L> metaDataFactory = new HotRodSessionMetaDataFactory<>(this.config.getSessionManagerFactoryConfiguration().getDeploymentName(), this.config.getCache());
+        SessionMetaDataFactory<UUID, HotRodSessionMetaData<UUID, L>, L> metaDataFactory = new HotRodSessionMetaDataFactory<>(this.config.getSessionManagerFactoryConfiguration().getDeploymentName(), this.config.getCache());
         return new HotRodSessionFactory<>(metaDataFactory, this.createSessionAttributesFactory(), localContextFactory);
     }
 

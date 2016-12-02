@@ -28,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import org.infinispan.client.hotrod.RemoteCache;
-import org.infinispan.client.hotrod.VersionedValue;
 import org.wildfly.clustering.ee.Mutator;
 import org.wildfly.clustering.ee.hotrod.RemoteCacheEntryMutator;
 import org.wildfly.clustering.marshalling.spi.InvalidSerializedFormException;
@@ -36,7 +35,6 @@ import org.wildfly.clustering.marshalling.spi.Marshaller;
 import org.wildfly.clustering.web.hotrod.Logger;
 import org.wildfly.clustering.web.hotrod.session.SessionAttributes;
 import org.wildfly.clustering.web.hotrod.session.SessionAttributesFactory;
-import org.wildfly.clustering.web.hotrod.session.SimpleVersionedValue;
 import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
 
 /**
@@ -63,13 +61,12 @@ public class CoarseSessionAttributesFactory<K, V> implements SessionAttributesFa
     }
 
     @Override
-    public VersionedValue<Map.Entry<Map<String, Object>, V>> findValue(K id) {
-        VersionedValue<V> versionedValue = this.cache.getVersioned(this.keyFactory.apply(id));
-        if (versionedValue != null) {
-            V value = versionedValue.getValue();
+    public Map.Entry<Map<String, Object>, V> findValue(K id) {
+        V value = this.cache.get(this.keyFactory.apply(id));
+        if (value != null) {
             try {
                 Map<String, Object> attributes = this.marshaller.read(value);
-                return new SimpleVersionedValue<>(new SimpleImmutableEntry<>(attributes, value), versionedValue.getVersion());
+                return new SimpleImmutableEntry<>(attributes, value);
             } catch (InvalidSerializedFormException e) {
                 Logger.ROOT_LOGGER.failedToActivateSession(e, id.toString());
                 this.remove(id);

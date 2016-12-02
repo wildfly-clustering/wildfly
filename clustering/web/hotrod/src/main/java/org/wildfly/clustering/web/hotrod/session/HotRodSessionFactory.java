@@ -22,7 +22,6 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
-import org.infinispan.client.hotrod.VersionedValue;
 import org.wildfly.clustering.web.LocalContextFactory;
 import org.wildfly.clustering.web.session.ImmutableSession;
 import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
@@ -34,11 +33,11 @@ import org.wildfly.clustering.web.session.Session;
  */
 public class HotRodSessionFactory<K, V, L> implements SessionFactory<K, HotRodSessionMetaData<K, L>, V, L> {
 
-    private final SessionMetaDataFactory<HotRodSessionMetaData<K, L>, L> metaDataFactory;
+    private final SessionMetaDataFactory<K, HotRodSessionMetaData<K, L>, L> metaDataFactory;
     private final SessionAttributesFactory<K, V> attributesFactory;
     private final LocalContextFactory<L> localContextFactory;
 
-    public HotRodSessionFactory(SessionMetaDataFactory<HotRodSessionMetaData<K, L>, L> metaDataFactory, SessionAttributesFactory<K, V> attributesFactory, LocalContextFactory<L> localContextFactory) {
+    public HotRodSessionFactory(SessionMetaDataFactory<K, HotRodSessionMetaData<K, L>, L> metaDataFactory, SessionAttributesFactory<K, V> attributesFactory, LocalContextFactory<L> localContextFactory) {
         this.metaDataFactory = metaDataFactory;
         this.attributesFactory = attributesFactory;
         this.localContextFactory = localContextFactory;
@@ -54,35 +53,30 @@ public class HotRodSessionFactory<K, V, L> implements SessionFactory<K, HotRodSe
     }
 
     @Override
-    public VersionedValue<SessionEntry<K, HotRodSessionMetaData<K, L>, V>> findValue(String id) {
-        VersionedValue<HotRodSessionMetaData<K, L>> value = this.metaDataFactory.findValue(id);
-        if (value != null) {
-            HotRodSessionMetaData<K, L> metaDataValue = value.getValue();
-            K key = metaDataValue.getKey();
-            VersionedValue<V> attributesValue = this.attributesFactory.findValue(key);
-            if (attributesValue != null) {
-                return new SimpleVersionedValue<>(new HotRodSessionEntry<>(key, metaDataValue, attributesValue.getValue()), value.getVersion());
+    public SessionEntry<K, HotRodSessionMetaData<K, L>, V> findValue(String id) {
+        HotRodSessionMetaData<K, L> metaData = this.metaDataFactory.findValue(id);
+        if (metaData != null) {
+            K key = metaData.getKey();
+            V attributes = this.attributesFactory.findValue(key);
+            if (attributes != null) {
+                return new HotRodSessionEntry<>(key, metaData, attributes);
             }
             // Purge obsolete meta data
-            this.metaDataFactory.remove(new SimpleVersionedValue<>(id, value.getVersion()));
+            this.metaDataFactory.remove(id);
         }
         return null;
     }
 
     @Override
     public boolean remove(String id) {
-        VersionedValue<HotRodSessionMetaData<K, L>> value = this.metaDataFactory.findValue(id);
-        if (value != null) {
-            if (this.metaDataFactory.remove(new SimpleVersionedValue<>(id, value.getVersion()))) {
-                this.attributesFactory.remove(value.getValue().getKey());
-                return true;
-            }
-        }
-        return false;
+        K key = this.metaDataFactory.remove(id);
+        if (key == null) return false;
+        this.attributesFactory.remove(key);
+        return true;
     }
 
     @Override
-    public SessionMetaDataFactory<HotRodSessionMetaData<K, L>, L> getMetaDataFactory() {
+    public SessionMetaDataFactory<K, HotRodSessionMetaData<K, L>, L> getMetaDataFactory() {
         return this.metaDataFactory;
     }
 

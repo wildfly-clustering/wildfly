@@ -22,7 +22,6 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
-import org.infinispan.client.hotrod.VersionedValue;
 import org.wildfly.clustering.ee.Creator;
 import org.wildfly.clustering.ee.Locator;
 import org.wildfly.clustering.ee.Remover;
@@ -31,7 +30,7 @@ import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
 /**
  * @author Paul Ferraro
  */
-public interface SessionAttributesFactory<K, V> extends Creator<K, V, Void>, Locator<K, VersionedValue<V>>, Remover<K> {
+public interface SessionAttributesFactory<K, V> extends Creator<K, V, Void>, Locator<K, V>, Remover<K> {
     SessionAttributes createSessionAttributes(K id, V value);
     ImmutableSessionAttributes createImmutableSessionAttributes(K id, V value);
 }

@@ -21,7 +21,6 @@
  */
 package org.wildfly.clustering.web.hotrod.session;
 
-import org.infinispan.client.hotrod.VersionedValue;
 import org.wildfly.clustering.ee.Creator;
 import org.wildfly.clustering.ee.Locator;
 import org.wildfly.clustering.ee.Remover;
@@ -35,8 +34,8 @@ import org.wildfly.clustering.web.session.Session;
  * Factory for creating sessions.  This represents the cache mapping strategy for sessions.
  * @author Paul Ferraro
  */
-public interface SessionFactory<K, MV extends Keyed<K>, AV, L> extends Creator<String, SessionEntry<K, MV, AV>, Void>, Locator<String, VersionedValue<SessionEntry<K, MV, AV>>>, Remover<String> {
-    SessionMetaDataFactory<MV, L> getMetaDataFactory();
+public interface SessionFactory<K, MV extends Keyed<K>, AV, L> extends Creator<String, SessionEntry<K, MV, AV>, Void>, Locator<String, SessionEntry<K, MV, AV>>, Remover<String> {
+    SessionMetaDataFactory<K, MV, L> getMetaDataFactory();
     SessionAttributesFactory<K, AV> getAttributesFactory();
 
     Session<L> createSession(String id, SessionEntry<K, MV, AV> entry);

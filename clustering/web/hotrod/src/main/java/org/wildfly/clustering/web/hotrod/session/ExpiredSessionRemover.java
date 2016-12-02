@@ -21,7 +21,6 @@
  */
 package org.wildfly.clustering.web.hotrod.session;
 
-import org.infinispan.client.hotrod.VersionedValue;
 import org.wildfly.clustering.ee.Remover;
 import org.wildfly.clustering.web.hotrod.Keyed;
 import org.wildfly.clustering.web.hotrod.Logger;
@@ -46,15 +45,14 @@ public class ExpiredSessionRemover<K, MV extends Keyed<K>, AV, L> implements Rem
 
     @Override
     public boolean remove(String id) {
-        VersionedValue<MV> value = this.factory.getMetaDataFactory().tryValue(id);
-        if (value != null) {
-            MV metaDataValue = value.getValue();
+        MV metaDataValue = this.factory.getMetaDataFactory().tryValue(id);
+        if (metaDataValue != null) {
             ImmutableSessionMetaData metaData = this.factory.getMetaDataFactory().createImmutableSessionMetaData(id, metaDataValue);
             if (metaData.isExpired()) {
                 K key = metaDataValue.getKey();
-                VersionedValue<AV> attributesValue = this.factory.getAttributesFactory().findValue(metaDataValue.getKey());
+                AV attributesValue = this.factory.getAttributesFactory().findValue(key);
                 if (attributesValue != null) {
-                    ImmutableSessionAttributes attributes = this.factory.getAttributesFactory().createImmutableSessionAttributes(key, attributesValue.getValue());
+                    ImmutableSessionAttributes attributes = this.factory.getAttributesFactory().createImmutableSessionAttributes(key, attributesValue);
                     ImmutableSession session = this.factory.createImmutableSession(id, metaData, attributes);
                     Logger.ROOT_LOGGER.tracef("Session %s has expired.", id);
                     this.listener.sessionExpired(session);

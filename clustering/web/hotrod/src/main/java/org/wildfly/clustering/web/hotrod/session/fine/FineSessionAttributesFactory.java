@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
 
 import org.infinispan.client.hotrod.Flag;
 import org.infinispan.client.hotrod.RemoteCache;
-import org.infinispan.client.hotrod.VersionedValue;
 import org.wildfly.clustering.ee.Mutator;
 import org.wildfly.clustering.ee.hotrod.RemoteCacheEntryMutator;
 import org.wildfly.clustering.marshalling.spi.InvalidSerializedFormException;
@@ -74,10 +73,10 @@ public class FineSessionAttributesFactory<K, V> implements SessionAttributesFact
     }
 
     @Override
-    public VersionedValue<SessionAttributeNamesEntry> findValue(K id) {
-        VersionedValue<SessionAttributeNamesEntry> entry = this.namesCache.getVersioned(this.attributeNamesKeyFactory.apply(id));
+    public SessionAttributeNamesEntry findValue(K id) {
+        SessionAttributeNamesEntry entry = this.namesCache.get(this.attributeNamesKeyFactory.apply(id));
         if (entry != null) {
-            ConcurrentMap<String, Integer> names = entry.getValue().getNames();
+            ConcurrentMap<String, Integer> names = entry.getNames();
             Map<SessionAttributeKey<K>, V> attributes = this.attributeCache.getAll(names.values().stream().map(attributeId -> this.attributeKeyFactory.apply(id, attributeId)).collect(Collectors.toSet()));
             Predicate<Map.Entry<String, V>> invalidAttribute = attribute -> {
                 V value = attribute.getValue();

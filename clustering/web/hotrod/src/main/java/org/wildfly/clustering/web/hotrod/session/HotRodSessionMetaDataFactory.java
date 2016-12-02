@@ -35,7 +35,7 @@ import org.wildfly.clustering.web.session.ImmutableSessionMetaData;
 /**
  * @author Paul Ferraro
  */
-public class HotRodSessionMetaDataFactory<L> implements SessionMetaDataFactory<HotRodSessionMetaData<UUID, L>, L> {
+public class HotRodSessionMetaDataFactory<L> implements SessionMetaDataFactory<UUID, HotRodSessionMetaData<UUID, L>, L> {
 
     private final RemoteCache<SessionCreationMetaDataKey, SessionCreationMetaDataEntry<UUID, L>> creationMetaDataCache;
     private final RemoteCache<SessionAccessMetaDataKey<UUID>, SessionAccessMetaData> accessMetaDataCache;
@@ -62,16 +62,16 @@ public class HotRodSessionMetaDataFactory<L> implements SessionMetaDataFactory<H
     }
 
     @Override
-    public VersionedValue<HotRodSessionMetaData<UUID, L>> findValue(String id) {
+    public HotRodSessionMetaData<UUID, L> findValue(String id) {
         SessionCreationMetaDataKey key = this.creationMetaDataKeyFactory.apply(id);
         VersionedValue<SessionCreationMetaDataEntry<UUID, L>> value = this.creationMetaDataCache.getVersioned(key);
         SessionCreationMetaDataEntry<UUID, L> creationMetaDataEntry = this.creationMetaDataCache.get(key);
         if (creationMetaDataEntry != null) {
             SessionAccessMetaData accessMetaData = this.accessMetaDataCache.get(this.accessMetaDataKeyFactory.apply(creationMetaDataEntry.getKey()));
             if (accessMetaData != null) {
-                return new SimpleVersionedValue<>(new HotRodSessionMetaData<>(creationMetaDataEntry, accessMetaData), value.getVersion());
+                return new HotRodSessionMetaData<>(creationMetaDataEntry, accessMetaData);
             }
-            this.creationMetaDataCache.remove(key);
+            this.creationMetaDataCache.removeWithVersion(key, value.getVersion());
         }
         return null;
     }
@@ -95,11 +95,12 @@ public class HotRodSessionMetaDataFactory<L> implements SessionMetaDataFactory<H
     }
 
     @Override
-    public boolean remove(VersionedValue<String> id) {
-        SessionCreationMetaDataKey key = this.creationMetaDataKeyFactory.apply(id.getValue());
-        VersionedValue<SessionCreationMetaDataEntry<UUID, L>> value = this.creationMetaDataCache.getVersioned(key);
-        this.creationMetaDataCache.removeWithVersion(key, value.getVersion());
-        this.accessMetaDataCache.remove(this.accessMetaDataKeyFactory.apply(value.getValue().getKey()));
-        return true;
+    public UUID remove(String id) {
+        SessionCreationMetaDataKey key = this.creationMetaDataKeyFactory.apply(id);
+        SessionCreationMetaDataEntry<UUID, L> creationMetaData = this.creationMetaDataCache.withFlags(Flag.FORCE_RETURN_VALUE).remove(key);
+        if (creationMetaData == null) return null;
+        UUID uuid = creationMetaData.getKey();
+        this.accessMetaDataCache.remove(this.accessMetaDataKeyFactory.apply(uuid));
+        return uuid;
     }
 }

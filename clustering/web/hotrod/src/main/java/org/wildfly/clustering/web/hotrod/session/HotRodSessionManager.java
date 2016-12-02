@@ -31,7 +31,6 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpSessionActivationListener;
 import javax.servlet.http.HttpSessionEvent;
 
-import org.infinispan.client.hotrod.VersionedValue;
 import org.wildfly.clustering.ee.Batch;
 import org.wildfly.clustering.ee.Batcher;
 import org.wildfly.clustering.ee.hotrod.HotRodBatcher;
@@ -105,12 +104,11 @@ public class HotRodSessionManager<K, MV extends Keyed<K>, AV, L> implements Sess
 
     @Override
     public Session<L> findSession(String id) {
-        VersionedValue<SessionEntry<K, MV, AV>> value = this.factory.findValue(id);
-        if (value == null) {
+        SessionEntry<K, MV, AV> entry = this.factory.findValue(id);
+        if (entry == null) {
             Logger.ROOT_LOGGER.tracef("Session %s not found", id);
             return null;
         }
-        SessionEntry<K, MV, AV> entry = value.getValue();
         ImmutableSession session = this.factory.createImmutableSession(id, entry);
         if (session.getMetaData().isExpired()) {
             Logger.ROOT_LOGGER.tracef("Session %s was found, but has expired", id);
@@ -134,8 +132,8 @@ public class HotRodSessionManager<K, MV extends Keyed<K>, AV, L> implements Sess
 
     @Override
     public ImmutableSession viewSession(String id) {
-        VersionedValue<SessionEntry<K, MV, AV>> value = this.factory.findValue(id);
-        return (value != null) ? new SimpleImmutableSession(this.factory.createImmutableSession(id, value.getValue())) : null;
+        SessionEntry<K, MV, AV> entry = this.factory.findValue(id);
+        return (entry != null) ? new SimpleImmutableSession(this.factory.createImmutableSession(id, entry)) : null;
     }
 
     @Override
