@@ -23,7 +23,6 @@ package org.wildfly.clustering.web.infinispan.session;
 
 import java.security.PrivilegedAction;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -60,9 +59,10 @@ import org.infinispan.notifications.cachelistener.event.CacheEntryRemovedEvent;
 import org.infinispan.notifications.cachelistener.event.DataRehashedEvent;
 import org.infinispan.remoting.transport.Address;
 import org.jboss.threads.JBossThreadFactory;
+import org.wildfly.clustering.Registrar;
+import org.wildfly.clustering.Registration;
 import org.wildfly.clustering.dispatcher.Command;
 import org.wildfly.clustering.dispatcher.CommandDispatcher;
-import org.wildfly.clustering.dispatcher.CommandDispatcherFactory;
 import org.wildfly.clustering.ee.Batch;
 import org.wildfly.clustering.ee.Batcher;
 import org.wildfly.clustering.ee.Invoker;
@@ -70,6 +70,7 @@ import org.wildfly.clustering.ee.Recordable;
 import org.wildfly.clustering.ee.infinispan.CacheProperties;
 import org.wildfly.clustering.ee.infinispan.RetryingInvoker;
 import org.wildfly.clustering.ee.infinispan.TransactionBatch;
+import org.wildfly.clustering.group.Group;
 import org.wildfly.clustering.group.Node;
 import org.wildfly.clustering.group.NodeFactory;
 import org.wildfly.clustering.infinispan.spi.distribution.CacheLocality;
@@ -108,18 +109,18 @@ public class InfinispanSessionManager<MV, AV, L> implements SessionManager<L, Tr
     private final CacheProperties properties;
     private final SessionFactory<MV, AV, L> factory;
     private final IdentifierFactory<String> identifierFactory;
-    private final CommandDispatcherFactory dispatcherFactory;
     private final NodeFactory<Address> nodeFactory;
-    private final int maxActiveSessions;
     private volatile Duration defaultMaxInactiveInterval = Duration.ofMinutes(30L);
     private final Invoker invoker = new RetryingInvoker(0, 10, 100);
     private final SessionCreationMetaDataKeyFilter filter = new SessionCreationMetaDataKeyFilter();
     private final Recordable<ImmutableSession> recorder;
     private final ServletContext context;
     private final AtomicReference<Future<?>> rehashFuture = new AtomicReference<>();
+    private final Registrar<SessionExpirationListener> sessionExpirationListenerRegistrar;
+    private final CommandDispatcher<Scheduler> dispatcher;
+    private final Group group;
 
-    private volatile CommandDispatcher<Scheduler> dispatcher;
-    private volatile Scheduler scheduler;
+    private volatile Registration sessionExpirationListenerRegistration;
     private volatile ExecutorService executor;
 
     public InfinispanSessionManager(SessionFactory<MV, AV, L> factory, InfinispanSessionManagerConfiguration configuration) {
@@ -129,11 +130,12 @@ public class InfinispanSessionManager<MV, AV, L> implements SessionManager<L, Tr
         this.expirationListener = configuration.getExpirationListener();
         this.identifierFactory = configuration.getIdentifierFactory();
         this.batcher = configuration.getBatcher();
-        this.dispatcherFactory = configuration.getCommandDispatcherFactory();
+        this.dispatcher = configuration.getCommandDispatcher();
         this.nodeFactory = configuration.getNodeFactory();
-        this.maxActiveSessions = configuration.getMaxActiveSessions();
         this.recorder = configuration.getInactiveSessionRecorder();
         this.context = configuration.getServletContext();
+        this.sessionExpirationListenerRegistrar = configuration.getSessionExpirationListenerRegistrar();
+        this.group = configuration.getGroup();
     }
 
     @Override
@@ -143,40 +145,18 @@ public class InfinispanSessionManager<MV, AV, L> implements SessionManager<L, Tr
             this.recorder.reset();
         }
         this.identifierFactory.start();
-        final List<Scheduler> schedulers = new ArrayList<>(2);
-        schedulers.add(new SessionExpirationScheduler(this.batcher, new ExpiredSessionRemover<>(this.factory, this.expirationListener)));
-        if (this.maxActiveSessions >= 0) {
-            schedulers.add(new SessionEvictionScheduler(this.cache.getName() + ".eviction", this.factory, this.batcher, this.dispatcherFactory, this.maxActiveSessions));
-        }
-        this.scheduler = new Scheduler() {
-            @Override
-            public void schedule(String sessionId, ImmutableSessionMetaData metaData) {
-                schedulers.forEach(scheduler -> scheduler.schedule(sessionId, metaData));
-            }
-
-            @Override
-            public void cancel(String sessionId) {
-                schedulers.forEach(scheduler -> scheduler.cancel(sessionId));
-            }
-
-            @Override
-            public void cancel(Locality locality) {
-                schedulers.forEach(scheduler -> scheduler.cancel(locality));
-            }
-
-            @Override
-            public void close() {
-                schedulers.forEach(scheduler -> scheduler.close());
-            }
-        };
-        this.dispatcher = this.dispatcherFactory.createCommandDispatcher(this.cache.getName() + ".schedulers", this.scheduler);
+        this.sessionExpirationListenerRegistration = this.sessionExpirationListenerRegistrar.register(this.expirationListener);
         this.cache.addListener(this, this.filter);
+        this.cache.addListener(this.factory.getMetaDataFactory(), this.filter);
+        this.cache.addListener(this.factory.getAttributesFactory(), this.filter);
         this.schedule(new SimpleLocality(false), new CacheLocality(this.cache));
     }
 
     @Override
     public void stop() {
         this.cache.removeListener(this);
+        this.cache.removeListener(this.factory.getMetaDataFactory());
+        this.cache.removeListener(this.factory.getAttributesFactory());
         PrivilegedAction<List<Runnable>> action = () -> this.executor.shutdownNow();
         WildFlySecurityManager.doUnchecked(action);
         try {
@@ -184,8 +164,7 @@ public class InfinispanSessionManager<MV, AV, L> implements SessionManager<L, Tr
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
-            this.dispatcher.close();
-            this.scheduler.close();
+            this.sessionExpirationListenerRegistration.close();
             this.identifierFactory.stop();
         }
     }
@@ -222,7 +201,7 @@ public class InfinispanSessionManager<MV, AV, L> implements SessionManager<L, Tr
         return Optional.ofNullable(this.cache.getAdvancedCache().getDistributionManager())
                 .map(dist -> dist.getCacheTopology().getDistribution(new Key<>(sessionId)).primary())
                 .map(address -> this.nodeFactory.createNode(address))
-                .orElse(this.dispatcherFactory.getGroup().getLocalNode());
+                .orElse(this.group.getLocalNode());
     }
 
     @Override
@@ -304,11 +283,6 @@ public class InfinispanSessionManager<MV, AV, L> implements SessionManager<L, Tr
     }
 
     @Override
-    public int getMaxActiveSessions() {
-        return this.maxActiveSessions;
-    }
-
-    @Override
     public long getActiveSessionCount() {
         return this.getActiveSessions().size();
     }
@@ -375,7 +349,7 @@ public class InfinispanSessionManager<MV, AV, L> implements SessionManager<L, Tr
                 future.cancel(true);
             }
             try {
-                this.executor.submit(() -> this.scheduler.cancel(newLocality));
+                this.executor.submit(() -> this.dispatcher.getContext().cancel(newLocality));
             } catch (RejectedExecutionException e) {
                 // Executor was shutdown
             }
@@ -405,7 +379,7 @@ public class InfinispanSessionManager<MV, AV, L> implements SessionManager<L, Tr
                             // We need to lookup the session to obtain its meta data
                             MV value = metaDataFactory.tryValue(id);
                             if (value != null) {
-                                this.scheduler.schedule(id, metaDataFactory.createImmutableSessionMetaData(id, value));
+                                this.dispatcher.getContext().schedule(id, metaDataFactory.createImmutableSessionMetaData(id, value));
                             }
                             return;
                         } catch (CacheException e) {

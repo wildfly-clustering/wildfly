@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2015, Red Hat, Inc., and individual contributors
+ * Copyright 2017, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -20,15 +20,18 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.wildfly.clustering.web.session;
+package org.wildfly.clustering;
 
 /**
- * Statistics for active sessions.
+ * Defines the contract for registration-capable objects, e.g. for listener registration.
  * @author Paul Ferraro
+ * @param <T> the type of object to be registered
  */
-public interface ActiveSessionStatistics {
+public interface Registrar<T> {
     /**
-     * @return The number of active sessions
+     * Registers an object.  The object is unregistered when the generated {@link Registration} is closed.
+     * @param object an object to register
+     * @return an object registration.
      */
-    long getActiveSessionCount();
+    Registration register(T object);
 }

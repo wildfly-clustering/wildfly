@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2015, Red Hat, Inc., and individual contributors
+ * Copyright 2017, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -20,15 +20,16 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.wildfly.clustering.web.session;
+package org.wildfly.clustering;
 
 /**
- * Statistics for active sessions.
+ * Encapsulates a registration.
  * @author Paul Ferraro
  */
-public interface ActiveSessionStatistics {
+public interface Registration extends AutoCloseable {
     /**
-     * @return The number of active sessions
+     * Removes this registration from the associated {@link Registrar}, after which this object is no longer functional.
      */
-    long getActiveSessionCount();
+    @Override
+    void close();
 }
