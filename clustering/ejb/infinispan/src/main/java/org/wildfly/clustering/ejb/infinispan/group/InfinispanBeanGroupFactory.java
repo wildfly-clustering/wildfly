@@ -26,6 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.infinispan.Cache;
 import org.infinispan.context.Flag;
+import org.infinispan.notifications.Listener;
+import org.infinispan.notifications.cachelistener.annotation.CacheEntriesEvicted;
+import org.infinispan.notifications.cachelistener.event.CacheEntriesEvictedEvent;
 import org.wildfly.clustering.ee.Mutator;
 import org.wildfly.clustering.ee.infinispan.CacheProperties;
 import org.wildfly.clustering.ee.infinispan.CacheEntryMutator;
@@ -35,8 +38,10 @@ import org.wildfly.clustering.ejb.infinispan.BeanGroupEntry;
 import org.wildfly.clustering.ejb.infinispan.BeanGroupFactory;
 import org.wildfly.clustering.ejb.infinispan.BeanGroupKey;
 import org.wildfly.clustering.ejb.infinispan.BeanKey;
+import org.wildfly.clustering.ejb.infinispan.bean.InfinispanBeanEntry;
 import org.wildfly.clustering.ejb.infinispan.bean.InfinispanBeanKey;
 import org.wildfly.clustering.ejb.infinispan.logging.InfinispanEjbLogger;
+import org.wildfly.clustering.infinispan.spi.distribution.Key;
 import org.wildfly.clustering.marshalling.jboss.MarshallingContext;
 import org.wildfly.clustering.marshalling.spi.MarshalledValueFactory;
 
@@ -48,6 +53,7 @@ import org.wildfly.clustering.marshalling.spi.MarshalledValueFactory;
  * @param <I> the bean identifier type
  * @param <T> the bean type
  */
+@Listener(sync = false)
 public class InfinispanBeanGroupFactory<I, T> implements BeanGroupFactory<I, T> {
 
     private final Cache<BeanGroupKey<I>, BeanGroupEntry<I, T>> cache;
@@ -116,5 +122,19 @@ public class InfinispanBeanGroupFactory<I, T> implements BeanGroupFactory<I, T> 
     public BeanGroup<I, T> createGroup(I id, BeanGroupEntry<I, T> entry) {
         Mutator mutator = new CacheEntryMutator<>(this.cache, this.createKey(id), entry);
         return new InfinispanBeanGroup<>(id, entry, this.context, mutator, this);
+    }
+
+    @CacheEntriesEvicted
+    public void evicted(CacheEntriesEvictedEvent<Key<I>, ?> event) {
+        if (!event.isPre()) {
+            Cache<BeanGroupKey<I>, BeanGroupEntry<I, T>> cache = this.cache.getAdvancedCache().withFlags(Flag.SKIP_LISTENER_NOTIFICATION);
+            event.getEntries().values().stream()
+                    // Workaround for ISPN-8324
+                    .filter(InfinispanBeanEntry.class::isInstance)
+                    .map(entry -> (BeanEntry<I>) entry)
+                    .map(BeanEntry::getGroupId)
+                    .map(InfinispanBeanGroupKey::new)
+                    .forEach(key -> cache.evict(key));
+        }
     }
 }

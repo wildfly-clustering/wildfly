@@ -114,9 +114,9 @@ public class InfinispanBeanManager<I, T> implements BeanManager<I, T, Transactio
     private final BeanFilter<I> filter;
     private final AtomicReference<Future<?>> rehashFuture = new AtomicReference<>();
 
-    private volatile SchedulerContext<I> schedulerContext;
+    private volatile Scheduler<I> scheduler;
     private volatile ExecutorService executor;
-    private volatile CommandDispatcher<SchedulerContext<I>> dispatcher;
+    private volatile CommandDispatcher<Scheduler<I>> dispatcher;
 
     public InfinispanBeanManager(InfinispanBeanManagerConfiguration<T> configuration, IdentifierFactory<I> identifierFactory, Configuration<BeanKey<I>, BeanEntry<I>, BeanFactory<I, T>> beanConfiguration, Configuration<BeanGroupKey<I>, BeanGroupEntry<I, T>, BeanGroupFactory<I, T>> groupConfiguration) {
         this.beanName = configuration.getBeanName();
@@ -143,7 +143,7 @@ public class InfinispanBeanManager<I, T> implements BeanManager<I, T, Transactio
         this.executor = Executors.newSingleThreadExecutor(createThreadFactory());
         this.affinity.start();
         Time timeout = this.expiration.getTimeout();
-        Scheduler<I> noopScheduler = new Scheduler<I>() {
+        this.scheduler = (timeout != null) && (timeout.getValue() >= 0) ? new BeanExpirationScheduler<>(this.batcher, new ExpiredBeanRemover<>(this.beanFactory), this.expiration) : new Scheduler<I>() {
             @Override
             public void schedule(I id) {
             }
@@ -160,26 +160,7 @@ public class InfinispanBeanManager<I, T> implements BeanManager<I, T, Transactio
             public void close() {
             }
         };
-        Scheduler<I> beanScheduler = (timeout != null) && (timeout.getValue() >= 0) ? new BeanExpirationScheduler<>(this.batcher, new ExpiredBeanRemover<>(this.beanFactory), this.expiration) : noopScheduler;
-        Scheduler<I> groupScheduler = (this.passivation.getConfiguration().getMaxSize() >= 0) ? new BeanGroupEvictionScheduler<>(this.beanName + ".eviction", this.batcher, this.groupFactory, this.dispatcherFactory, this.passivation) : noopScheduler;
-        this.schedulerContext = new SchedulerContext<I>() {
-            @Override
-            public void close() {
-                groupScheduler.close();
-                beanScheduler.close();
-            }
-
-            @Override
-            public Scheduler<I> getBeanScheduler() {
-                return beanScheduler;
-            }
-
-            @Override
-            public Scheduler<I> getBeanGroupScheduler() {
-                return groupScheduler;
-            }
-        };
-        this.dispatcher = this.dispatcherFactory.createCommandDispatcher(this.beanName + ".schedulers", this.schedulerContext);
+        this.dispatcher = this.dispatcherFactory.createCommandDispatcher(this.beanName + ".schedulers", this.scheduler);
         this.cache.addListener(this, this.filter, null);
         this.schedule(new SimpleLocality(false), new CacheLocality(this.cache));
     }
@@ -195,7 +176,7 @@ public class InfinispanBeanManager<I, T> implements BeanManager<I, T, Transactio
             Thread.currentThread().interrupt();
         } finally {
             this.dispatcher.close();
-            this.schedulerContext.close();
+            this.scheduler.close();
             this.affinity.stop();
         }
     }
@@ -239,7 +220,7 @@ public class InfinispanBeanManager<I, T> implements BeanManager<I, T, Transactio
         }
     }
 
-    private void executeOnPrimaryOwner(Bean<I, T> bean, final Command<Void, SchedulerContext<I>> command) throws Exception {
+    private void executeOnPrimaryOwner(Bean<I, T> bean, final Command<Void, Scheduler<I>> command) throws Exception {
         this.invoker.invoke(() -> {
             // This should only go remote following a failover
             Node node = InfinispanBeanManager.this.locatePrimaryOwner(bean.getId());
@@ -305,15 +286,17 @@ public class InfinispanBeanManager<I, T> implements BeanManager<I, T, Transactio
 
     @CacheEntryPassivated
     public void passivated(CacheEntryPassivatedEvent<BeanKey<I>, BeanEntry<I>> event) {
+        I groupId = event.getValue().getGroupId();
         if (event.isPre()) {
             this.passiveCount.incrementAndGet();
             if (!this.properties.isPersistent()) {
-                I groupId = event.getValue().getGroupId();
                 BeanGroupEntry<I, T> entry = this.groupFactory.findValue(groupId);
                 if (entry != null) {
                     this.groupFactory.createGroup(groupId, entry).prePassivate(event.getKey().getId(), this.passivation.getPassivationListener());
                 }
             }
+        } else {
+            this.groupFactory.evict(groupId);
         }
     }
 
@@ -341,8 +324,7 @@ public class InfinispanBeanManager<I, T> implements BeanManager<I, T, Transactio
             }
             try {
                 this.executor.submit(() -> {
-                    this.schedulerContext.getBeanScheduler().cancel(newLocality);
-                    this.schedulerContext.getBeanGroupScheduler().cancel(newLocality);
+                    this.scheduler.cancel(newLocality);
                 });
             } catch (RejectedExecutionException e) {
                 // Executor was shutdown
@@ -367,8 +349,7 @@ public class InfinispanBeanManager<I, T> implements BeanManager<I, T, Transactio
                 BeanKey<I> key = entry.getKey();
                 // If we are the new primary owner of this bean then schedule expiration of this bean locally
                 if (this.filter.test(this.filter) && !oldLocality.isLocal(key) && newLocality.isLocal(key)) {
-                    this.schedulerContext.getBeanScheduler().schedule(key.getId());
-                    this.schedulerContext.getBeanGroupScheduler().schedule(entry.getValue().getGroupId());
+                    this.scheduler.schedule(key.getId());
                 }
             }
         }
