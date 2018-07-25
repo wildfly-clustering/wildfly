@@ -26,7 +26,6 @@ import java.io.File;
 import org.jboss.as.server.deployment.AttachmentKey;
 import org.jboss.as.server.deployment.AttachmentList;
 import org.wildfly.extension.undertow.ServletContainerService;
-import org.wildfly.extension.undertow.session.SharedSessionManagerConfig;
 
 import io.undertow.predicate.Predicate;
 import io.undertow.server.HandlerWrapper;
@@ -52,8 +51,6 @@ public final class UndertowAttachments {
     public static final AttachmentKey<AttachmentList<ThreadSetupHandler>> UNDERTOW_THREAD_SETUP_ACTIONS = AttachmentKey.createList(ThreadSetupHandler.class);
 
     public static final AttachmentKey<AttachmentList<ServletExtension>> UNDERTOW_SERVLET_EXTENSIONS = AttachmentKey.createList(ServletExtension.class);
-
-    public static final AttachmentKey<SharedSessionManagerConfig> SHARED_SESSION_MANAGER_CONFIG = AttachmentKey.create(SharedSessionManagerConfig.class);
 
     public static final AttachmentKey<WebSocketDeploymentInfo> WEB_SOCKET_DEPLOYMENT_INFO = AttachmentKey.create(WebSocketDeploymentInfo.class);
 
