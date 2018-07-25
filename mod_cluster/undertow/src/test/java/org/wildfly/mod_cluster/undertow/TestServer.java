@@ -21,6 +21,8 @@
  */
 package org.wildfly.mod_cluster.undertow;
 
+import org.jboss.as.controller.capability.CapabilityServiceSupport;
+import org.mockito.Mockito;
 import org.wildfly.extension.undertow.Host;
 import org.wildfly.extension.undertow.ListenerService;
 import org.wildfly.extension.undertow.Server;
@@ -28,7 +30,7 @@ import org.wildfly.extension.undertow.UndertowService;
 
 public class TestServer extends Server {
     public TestServer(String name, String defaultHost) {
-        super(name, defaultHost);
+        super(name, defaultHost, Mockito.mock(CapabilityServiceSupport.class));
     }
 
     public TestServer(String name, String defaultHost, UndertowService service, Host host, ListenerService listener) {

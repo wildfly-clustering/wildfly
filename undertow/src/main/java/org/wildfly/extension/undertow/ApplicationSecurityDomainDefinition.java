@@ -52,12 +52,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -79,7 +80,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 import javax.servlet.http.HttpSession;
 
-import org.jboss.as.clustering.controller.SimpleCapabilityServiceConfigurator;
 import org.jboss.as.controller.AbstractAddStepHandler;
 import org.jboss.as.controller.AttributeDefinition;
 import org.jboss.as.controller.CapabilityServiceTarget;
@@ -112,13 +112,16 @@ import org.jboss.msc.service.StartContext;
 import org.jboss.msc.service.StartException;
 import org.jboss.msc.service.StopContext;
 import org.wildfly.clustering.service.ServiceConfigurator;
+import org.wildfly.clustering.web.container.SecurityDomainSingleSignOnManagementConfiguration;
+import org.wildfly.clustering.web.container.SecurityDomainSingleSignOnManagementProvider;
 import org.wildfly.elytron.web.undertow.server.ElytronContextAssociationHandler;
 import org.wildfly.elytron.web.undertow.server.ElytronHttpExchange;
 import org.wildfly.elytron.web.undertow.server.ElytronRunAsHandler;
 import org.wildfly.elytron.web.undertow.server.ScopeSessionListener;
 import org.wildfly.extension.undertow.logging.UndertowLogger;
 import org.wildfly.extension.undertow.security.jacc.JACCAuthorizationManager;
-import org.wildfly.extension.undertow.security.sso.DistributableSecurityDomainSingleSignOnManagerServiceConfiguratorProvider;
+import org.wildfly.extension.undertow.sso.elytron.NonDistributableSingleSignOnManagementProvider;
+import org.wildfly.extension.undertow.sso.elytron.SingleSignOnIdentifierFactory;
 import org.wildfly.security.auth.server.HttpAuthenticationFactory;
 import org.wildfly.security.auth.server.MechanismConfiguration;
 import org.wildfly.security.auth.server.MechanismConfigurationSelector;
@@ -139,7 +142,6 @@ import org.wildfly.security.http.Scope;
 import org.wildfly.security.http.impl.ServerMechanismFactoryImpl;
 import org.wildfly.security.http.util.FilterServerMechanismFactory;
 import org.wildfly.security.http.util.PropertiesServerMechanismFactory;
-import org.wildfly.security.http.util.sso.DefaultSingleSignOnManager;
 import org.wildfly.security.http.util.sso.SingleSignOnServerMechanismFactory;
 import org.wildfly.security.http.util.sso.SingleSignOnServerMechanismFactory.SingleSignOnConfiguration;
 import org.wildfly.security.http.util.sso.SingleSignOnSessionFactory;
@@ -148,9 +150,7 @@ import org.wildfly.security.manager.WildFlySecurityManager;
 import io.undertow.security.idm.Account;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
-import io.undertow.server.session.SecureRandomSessionIdGenerator;
 import io.undertow.server.session.SessionConfig;
-import io.undertow.server.session.SessionIdGenerator;
 import io.undertow.server.session.SessionManager;
 import io.undertow.servlet.api.AuthMethodConfig;
 import io.undertow.servlet.api.AuthorizationManager;
@@ -287,9 +287,12 @@ public class ApplicationSecurityDomainDefinition extends PersistentResourceDefin
     }
 
     private static class AddHandler extends AbstractAddStepHandler {
+        private final SecurityDomainSingleSignOnManagementProvider provider;
 
         private AddHandler() {
             super(ATTRIBUTES);
+            Iterator<SecurityDomainSingleSignOnManagementProvider> providers = ServiceLoader.load(SecurityDomainSingleSignOnManagementProvider.class, SecurityDomainSingleSignOnManagementProvider.class.getClassLoader()).iterator();
+            this.provider = providers.hasNext() ? providers.next() : NonDistributableSingleSignOnManagementProvider.INSTANCE;
         }
 
         /* (non-Javadoc)
@@ -354,12 +357,20 @@ public class ApplicationSecurityDomainDefinition extends PersistentResourceDefin
                 SingleSignOnConfiguration singleSignOnConfiguration = new SingleSignOnConfiguration(cookieName, domain, path, httpOnly, secure);
 
                 ServiceName managerServiceName = new SingleSignOnManagerServiceNameProvider(securityDomainName).getServiceName();
-                SessionIdGenerator generator = new SecureRandomSessionIdGenerator();
+                Supplier<String> generator = new SingleSignOnIdentifierFactory();
 
-                DistributableSecurityDomainSingleSignOnManagerServiceConfiguratorProvider.INSTANCE
-                        .map(provider -> provider.getServiceConfigurator(managerServiceName, securityDomainName, generator))
-                        .orElse(new SimpleCapabilityServiceConfigurator<>(managerServiceName, new DefaultSingleSignOnManager(new ConcurrentHashMap<>(), generator::createSessionId)))
-                        .configure(context).build(target).setInitialMode(ServiceController.Mode.ON_DEMAND).install();
+                SecurityDomainSingleSignOnManagementConfiguration configuration = new SecurityDomainSingleSignOnManagementConfiguration() {
+                    @Override
+                    public String getSecurityDomainName() {
+                        return securityDomainName;
+                    }
+
+                    @Override
+                    public Supplier<String> getIdentifierGenerator() {
+                        return generator;
+                    }
+                };
+                this.provider.getServiceConfigurator(managerServiceName, configuration).configure(context).build(target).setInitialMode(ServiceController.Mode.ON_DEMAND).install();
 
                 ServiceConfigurator factoryConfigurator = new SingleSignOnSessionFactoryServiceConfigurator(securityDomainName).configure(context, ssoModel);
                 factoryConfigurator.build(target).setInitialMode(ServiceController.Mode.ON_DEMAND).install();

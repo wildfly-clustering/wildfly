@@ -1,0 +1,9 @@
+<subsystem xmlns="urn:jboss:domain:distributable-web:1.0">
+    <session-management default="default">
+        <infinispan-session-management name="default" cache-container="foo" granularity="SESSION" routing="OWNER"/>
+    </session-management>
+    <single-sign-on-management default="default">
+        <infinispan-single-sign-on-management name="default" cache-container="foo" cache="bar"/>
+    </single-sign-on-management>
+    <infinispan-routing cache-container="web" cache="routing"/>
+</subsystem>

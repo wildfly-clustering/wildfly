@@ -24,8 +24,8 @@ package org.wildfly.extension.undertow;
 
 import static org.wildfly.extension.undertow.ServerDefinition.SERVER_CAPABILITY;
 
-import org.jboss.as.clustering.controller.CapabilityServiceConfigurator;
 import org.jboss.as.controller.AbstractAddStepHandler;
+import org.jboss.as.controller.CapabilityServiceBuilder;
 import org.jboss.as.controller.OperationContext;
 import org.jboss.as.controller.OperationFailedException;
 import org.jboss.as.controller.PathAddress;
@@ -36,8 +36,8 @@ import org.jboss.dmr.ModelNode;
 import org.jboss.dmr.Property;
 import org.jboss.msc.service.ServiceBuilder;
 import org.jboss.msc.service.ServiceController;
-import org.jboss.msc.service.ServiceTarget;
-import org.wildfly.extension.undertow.session.DistributableSessionIdentifierCodecServiceConfiguratorProvider;
+import org.wildfly.clustering.web.container.WebRequirement;
+import org.wildfly.clustering.web.container.RoutingProvider;
 
 /**
  * @author <a href="mailto:tomaz.cerar@redhat.com">Tomaz Cerar</a> (c) 2013 Red Hat Inc.
@@ -60,10 +60,14 @@ class ServerAdd extends AbstractAddStepHandler {
         final String servletContainer = ServerDefinition.SERVLET_CONTAINER.resolveModelAttribute(context, resource.getModel()).asString();
         final String defaultServerName = UndertowRootDefinition.DEFAULT_SERVER.resolveModelAttribute(context, parentModel).asString();
 
-        final Server service = new Server(name, defaultHost);
-        final ServiceBuilder<Server> builder = context.getCapabilityServiceTarget().addCapability(SERVER_CAPABILITY, service)
+        final Server service = new Server(name, defaultHost, context.getCapabilityServiceSupport());
+        final CapabilityServiceBuilder<Server> builder = context.getCapabilityServiceTarget().addCapability(SERVER_CAPABILITY, service)
                 .addCapabilityRequirement(Capabilities.CAPABILITY_SERVLET_CONTAINER, ServletContainerService.class, service.getServletContainerInjector(), servletContainer)
                 .addCapabilityRequirement(Capabilities.CAPABILITY_UNDERTOW, UndertowService.class, service.getUndertowServiceInjector());
+
+        if (context.hasOptionalCapability(WebRequirement.ROUTING_PROVIDER.getName(), SERVER_CAPABILITY.getDynamicName(context.getCurrentAddress()), null)) {
+            builder.addCapabilityRequirement(WebRequirement.ROUTING_PROVIDER.getName(), RoutingProvider.class, service.getRouting());
+        }
 
         builder.setInitialMode(ServiceController.Mode.ACTIVE);
         boolean isDefaultServer = name.equals(defaultServerName);
@@ -84,14 +88,6 @@ class ServerAdd extends AbstractAddStepHandler {
             commonServerBuilder.install();
         }
         builder.install();
-
-        ServiceTarget target = context.getServiceTarget();
-        DistributableSessionIdentifierCodecServiceConfiguratorProvider provider = DistributableSessionIdentifierCodecServiceConfiguratorProvider.INSTANCE.orElse(null);
-        if (provider != null) {
-            for (CapabilityServiceConfigurator configurator : provider.getServerServiceConfigurators(name)) {
-                configurator.configure(context).build(target).install();
-            }
-        }
     }
 
     @Override

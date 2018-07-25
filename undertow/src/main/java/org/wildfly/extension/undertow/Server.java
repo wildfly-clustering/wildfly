@@ -29,6 +29,19 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+import org.jboss.as.clustering.controller.CapabilityServiceConfigurator;
+import org.jboss.as.controller.capability.CapabilityServiceSupport;
+import org.jboss.as.network.SocketBinding;
+import org.jboss.msc.inject.Injector;
+import org.jboss.msc.service.Service;
+import org.jboss.msc.service.ServiceTarget;
+import org.jboss.msc.service.StartContext;
+import org.jboss.msc.service.StartException;
+import org.jboss.msc.service.StopContext;
+import org.jboss.msc.value.InjectedValue;
+import org.wildfly.clustering.web.container.RoutingProvider;
+import org.wildfly.extension.undertow.logging.UndertowLogger;
+
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.CanonicalPathHandler;
@@ -36,14 +49,6 @@ import io.undertow.server.handlers.NameVirtualHostHandler;
 import io.undertow.server.handlers.ResponseCodeHandler;
 import io.undertow.server.handlers.error.SimpleErrorPageHandler;
 import io.undertow.util.Headers;
-import org.jboss.as.network.SocketBinding;
-import org.jboss.msc.inject.Injector;
-import org.jboss.msc.service.Service;
-import org.jboss.msc.service.StartContext;
-import org.jboss.msc.service.StartException;
-import org.jboss.msc.service.StopContext;
-import org.jboss.msc.value.InjectedValue;
-import org.wildfly.extension.undertow.logging.UndertowLogger;
 
 /**
  * @author <a href="mailto:tomaz.cerar@redhat.com">Tomaz Cerar</a> (c) 2013 Red Hat Inc.
@@ -51,18 +56,21 @@ import org.wildfly.extension.undertow.logging.UndertowLogger;
 public class Server implements Service<Server> {
     private final String defaultHost;
     private final String name;
+    private final CapabilityServiceSupport support;
     private final NameVirtualHostHandler virtualHostHandler = new NameVirtualHostHandler();
     private final InjectedValue<ServletContainerService> servletContainer = new InjectedValue<>();
     private final InjectedValue<UndertowService> undertowService = new InjectedValue<>();
+    private final InjectedValue<RoutingProvider> routing = new InjectedValue<>();
     private volatile HttpHandler root;
     private final List<ListenerService> listeners = new CopyOnWriteArrayList<>();
     private final Set<Host> hosts = new CopyOnWriteArraySet<>();
 
     private final HashMap<Integer,Integer> securePortMappings = new HashMap<>();
 
-    protected Server(String name, String defaultHost) {
+    protected Server(String name, String defaultHost, CapabilityServiceSupport support) {
         this.name = name;
         this.defaultHost = defaultHost;
+        this.support = support;
     }
 
     @Override
@@ -74,6 +82,14 @@ public class Server implements Service<Server> {
 
         UndertowLogger.ROOT_LOGGER.startedServer(name);
         undertowService.getValue().registerServer(this);
+
+        ServiceTarget target = startContext.getChildTarget();
+        RoutingProvider provider = this.routing.getOptionalValue();
+        if (provider != null) {
+            for (CapabilityServiceConfigurator configurator : provider.getServiceConfigurators(this.name, this.getRoute())) {
+                configurator.configure(this.support).build(target).install();
+            }
+        }
     }
 
     protected void registerListener(ListenerService listener) {
@@ -171,6 +187,10 @@ public class Server implements Service<Server> {
         UndertowService service = this.undertowService.getValue();
         String defaultServerRoute = service.getInstanceId();
         return this.name.equals(service.getDefaultServer()) ? defaultServerRoute : String.join("-", defaultServerRoute, this.name);
+    }
+
+    Injector<RoutingProvider> getRouting() {
+        return this.routing;
     }
 
     private final class DefaultHostHandler implements HttpHandler {

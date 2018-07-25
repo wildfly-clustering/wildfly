@@ -43,9 +43,10 @@ import org.wildfly.clustering.service.ServiceSupplierDependency;
 import org.wildfly.clustering.service.SimpleServiceNameProvider;
 import org.wildfly.clustering.service.SimpleSupplierDependency;
 import org.wildfly.clustering.service.SupplierDependency;
+import org.wildfly.clustering.web.container.SecurityDomainSingleSignOnManagementConfiguration;
+import org.wildfly.clustering.web.sso.DistributableSSOManagementProvider;
 import org.wildfly.clustering.web.sso.SSOManager;
 import org.wildfly.clustering.web.sso.SSOManagerFactory;
-import org.wildfly.clustering.web.sso.SSOManagerFactoryServiceConfiguratorProvider;
 import org.wildfly.clustering.web.undertow.sso.SSOManagerServiceConfigurator;
 import org.wildfly.security.http.util.sso.SingleSignOnManager;
 
@@ -60,12 +61,12 @@ public class DistributableSingleSignOnManagerServiceConfigurator extends SimpleS
 
     private final Collection<CapabilityServiceConfigurator> configurators;
 
-    public DistributableSingleSignOnManagerServiceConfigurator(ServiceName name, String securityDomainName, SessionIdGenerator generator, SSOManagerFactoryServiceConfiguratorProvider provider) {
+    public DistributableSingleSignOnManagerServiceConfigurator(ServiceName name, SecurityDomainSingleSignOnManagementConfiguration configuration, DistributableSSOManagementProvider provider) {
         super(name);
 
-        CapabilityServiceConfigurator factoryConfigurator = provider.getServiceConfigurator(securityDomainName);
+        CapabilityServiceConfigurator factoryConfigurator = provider.getServiceConfigurator(configuration.getSecurityDomainName());
         SupplierDependency<SSOManagerFactory<ElytronAuthentication, String, Map.Entry<String, URI>, Batch>> factoryDependency = new ServiceSupplierDependency<>(factoryConfigurator);
-        SupplierDependency<SessionIdGenerator> generatorDependency = new SimpleSupplierDependency<>(generator);
+        SupplierDependency<SessionIdGenerator> generatorDependency = new SimpleSupplierDependency<>(new SessionIdGeneratorAdapter(configuration.getIdentifierGenerator()));
         ServiceName managerServiceName = this.getServiceName().append("manager");
         CapabilityServiceConfigurator managerConfigurator = new SSOManagerServiceConfigurator<>(managerServiceName, factoryDependency, generatorDependency, new LocalSSOContextFactory());
 

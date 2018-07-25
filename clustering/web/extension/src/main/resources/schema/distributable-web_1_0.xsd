@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema targetNamespace="urn:jboss:distributable-web:1.0"
+            xmlns:xs="http://www.w3.org/2001/XMLSchema"
+            xmlns:tns="urn:jboss:distributable-web:1.0"
+            elementFormDefault="qualified"
+            attributeFormDefault="unqualified"
+            version="1.0">
+
+    <xs:element name="distributable-web" type="tns:distributable-web"></xs:element>
+
+    <xs:complexType name="distributable-web">
+        <xs:choice>
+            <xs:element name="session-mangement" type="tns:session-management">
+                <xs:annotation>
+                    <xs:documentation>References an existing session management provider</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="infinispan-session-mangement" type="tns:infinispan-session-management">
+                <xs:annotation>
+                    <xs:documentation>Defines a deployment specific Infinispan cache-based session management provider</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="session-management">
+        <xs:attribute name="name" type="xs:string">
+            <xs:annotation>
+                <xs:documentation>References the name of an existing session management provider</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:complexType name="abstract-session-management" abstract="true">
+        <xs:attribute name="granularity" type="tns:granularity" use="required">
+            <xs:annotation>
+                <xs:documentation>Defines the granularity of cache entry mapping for the attributes of a session.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="routing" type="tns:routing" use="required">
+            <xs:annotation>
+                <xs:documentation>Defines the routing strategy for a given session.</xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:complexType name="infinispan-session-management">
+        <xs:complexContent>
+            <xs:extension base="tns:abstract-session-management">
+                <xs:attribute name="cache-container" type="xs:string" use="required">
+                    <xs:annotation>
+                        <xs:documentation>References a cache-container defined by the Infinispan subsystem.</xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+                <xs:attribute name="cache" type="xs:string">
+                    <xs:annotation>
+                        <xs:documentation>
+                            References a cache within the associated cache-container.
+                            If unspecified, the default cache of the associated cache-container is assumed.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:simpleType name="granularity">
+        <xs:restriction base="xs:token">
+            <xs:enumeration value="SESSION">
+                <xs:annotation>
+                    <xs:documentation>
+                        Stores all session attributes within a single cache entry.
+                        Generally more expensive than ATTRIBUTE granularity, but preserves any cross-attribute object references.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:enumeration>
+            <xs:enumeration value="ATTRIBUTE">
+                <xs:annotation>
+                    <xs:documentation>
+                        Stores each session attribute within a separate cache entry.
+                        Generally more efficient than SESSION granularity, but does not preserve any cross-attribute object references.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:enumeration>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="routing">
+        <xs:restriction base="xs:token">
+            <xs:enumeration value="NONE">
+                <xs:annotation>
+                    <xs:documentation>Disables route annotation of session ID.</xs:documentation>
+                </xs:annotation>
+            </xs:enumeration>
+            <xs:enumeration value="LOCAL">
+                <xs:annotation>
+                    <xs:documentation>Routes subsequent requests to the node that last handled a request for a given session.</xs:documentation>
+                </xs:annotation>
+            </xs:enumeration>
+            <xs:enumeration value="OWNER">
+                <xs:annotation>
+                    <xs:documentation>
+                        Routes subsequent requests to the primary owner of a given session.
+                        Behaves the same as LOCAL if cache is not distributed nor replicated.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:enumeration>
+        </xs:restriction>
+    </xs:simpleType>
+</xs:schema>

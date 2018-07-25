@@ -181,6 +181,7 @@
                                 <extension>org.wildfly.extension.bean-validation</extension>
                                 <extension>org.wildfly.extension.core-management</extension>
                                 <extension>org.wildfly.extension.clustering.singleton</extension>
+                                <extension>org.wildfly.extension.clustering.web</extension>
                                 <extension>org.wildfly.extension.ee-security</extension>
                                 <extension>org.wildfly.extension.elytron</extension>
                                 <extension>org.wildfly.extension.io</extension>
@@ -220,6 +221,7 @@
                                 <extension>org.wildfly.extension.batch.jberet</extension>
                                 <extension>org.wildfly.extension.bean-validation</extension>
                                 <extension>org.wildfly.extension.clustering.singleton</extension>
+                                <extension>org.wildfly.extension.clustering.web</extension>
                                 <extension>org.wildfly.extension.core-management</extension>
                                 <extension>org.wildfly.extension.ee-security</extension>
                                 <extension>org.wildfly.extension.elytron</extension>
@@ -2701,6 +2703,26 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>wildfly-clustering-web-api</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>wildfly-clustering-web-container</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>wildfly-clustering-web-extension</artifactId>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>

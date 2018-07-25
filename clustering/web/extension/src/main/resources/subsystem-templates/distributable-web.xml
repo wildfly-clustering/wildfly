@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  See src/resources/configuration/ReadMe.txt for how the configuration assembly works -->
+<config>
+    <extension-module>org.wildfly.extension.clustering.web</extension-module>
+    <subsystem xmlns="urn:jboss:domain:distributable-web:1.0">
+        <session-management default="default">
+            <infinispan-session-management name="default" cache-container="web" granularity="SESSION" routing="OWNER"/>
+        </session-management>
+        <single-sign-on-management default="default">
+            <infinispan-single-sign-on-management name="default" cache-container="web" cache="sso"/>
+        </single-sign-on-management>
+        <infinispan-routing cache-container="web" cache="routing"/>
+    </subsystem>
+</config>

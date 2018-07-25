@@ -41,9 +41,10 @@ import org.wildfly.clustering.service.ServiceConfigurator;
 import org.wildfly.clustering.service.ServiceSupplierDependency;
 import org.wildfly.clustering.service.SimpleServiceNameProvider;
 import org.wildfly.clustering.service.SupplierDependency;
+import org.wildfly.clustering.web.container.HostSingleSignOnManagementConfiguration;
+import org.wildfly.clustering.web.sso.DistributableSSOManagementProvider;
 import org.wildfly.clustering.web.sso.SSOManager;
 import org.wildfly.clustering.web.sso.SSOManagerFactory;
-import org.wildfly.clustering.web.sso.SSOManagerFactoryServiceConfiguratorProvider;
 
 import io.undertow.security.api.AuthenticatedSessionManager.AuthenticatedSession;
 import io.undertow.security.impl.SingleSignOnManager;
@@ -62,12 +63,12 @@ public class DistributableSingleSignOnManagerServiceConfigurator extends SimpleS
 
     private final Collection<CapabilityServiceConfigurator> configurators;
 
-    public DistributableSingleSignOnManagerServiceConfigurator(ServiceName name, String serverName, String hostName, SSOManagerFactoryServiceConfiguratorProvider provider) {
+    public DistributableSingleSignOnManagerServiceConfigurator(ServiceName name, HostSingleSignOnManagementConfiguration configuration, DistributableSSOManagementProvider provider) {
         super(name);
 
-        CapabilityServiceConfigurator factoryConfigurator = provider.getServiceConfigurator(hostName);
+        CapabilityServiceConfigurator factoryConfigurator = provider.getServiceConfigurator(configuration.getHostName());
         ServiceName generatorServiceName = name.append("generator");
-        CapabilityServiceConfigurator generatorConfigurator = new SessionIdGeneratorServiceConfigurator(generatorServiceName, serverName);
+        CapabilityServiceConfigurator generatorConfigurator = new SessionIdGeneratorServiceConfigurator(generatorServiceName, configuration.getServerName());
 
         SupplierDependency<SSOManagerFactory<AuthenticatedSession, String, String, Batch>> factoryDependency = new ServiceSupplierDependency<>(factoryConfigurator);
         SupplierDependency<SessionIdGenerator> generatorDependency = new ServiceSupplierDependency<>(generatorServiceName);
@@ -80,7 +81,7 @@ public class DistributableSingleSignOnManagerServiceConfigurator extends SimpleS
 
         SupplierDependency<SessionListener> listenerDependency = new ServiceSupplierDependency<>(listenerServiceName);
         ServiceName registryServiceName = name.append("registry");
-        CapabilityServiceConfigurator registryConfigurator = new SessionManagerRegistryServiceConfigurator(registryServiceName, serverName, hostName, listenerDependency);
+        CapabilityServiceConfigurator registryConfigurator = new SessionManagerRegistryServiceConfigurator(registryServiceName, configuration.getServerName(), configuration.getHostName(), listenerDependency);
 
         this.manager = new ServiceSupplierDependency<>(managerConfigurator);
         this.registry = new ServiceSupplierDependency<>(registryConfigurator);
