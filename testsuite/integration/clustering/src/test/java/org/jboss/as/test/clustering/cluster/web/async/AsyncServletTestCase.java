@@ -76,7 +76,7 @@ public class AsyncServletTestCase extends AbstractClusteringTestCase {
         war.addPackage(AsyncServlet.class.getPackage());
         // Take web.xml from the managed test.
         war.setWebXML(SimpleServlet.class.getPackage(), "web.xml");
-        war.addAsWebInfResource(DistributableTestCase.class.getPackage(), "jboss-web_fine.xml", "jboss-web.xml");
+        war.addAsWebInfResource(DistributableTestCase.class.getPackage(), "jboss-all_fine.xml", "jboss-all.xml");
         return war;
     }
 

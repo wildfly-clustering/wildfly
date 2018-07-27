@@ -78,7 +78,7 @@ public class DatabasePersistenceWebFailoverTestCase extends AbstractWebFailoverT
         war.addClasses(SimpleServlet.class, Mutable.class);
         ClusterTestUtil.addTopologyListenerDependencies(war);
         war.setWebXML(AbstractWebFailoverTestCase.class.getPackage(), "web.xml");
-        war.addAsWebInfResource(DatabasePersistenceWebFailoverTestCase.class.getPackage(), "jboss-web.xml", "jboss-web.xml");
+        war.addAsWebInfResource(DatabasePersistenceWebFailoverTestCase.class.getPackage(), "distributable-web.xml", "distributable-web.xml");
         return war;
     }
 
@@ -95,6 +95,8 @@ public class DatabasePersistenceWebFailoverTestCase extends AbstractWebFailoverT
                     .setup("/subsystem=infinispan/cache-container=web/invalidation-cache=database-persistence/store=jdbc:add(data-source=web-sessions-ds,fetch-state=false,purge=false,passivation=false,shared=true")
                     .setup("/subsystem=infinispan/cache-container=web/invalidation-cache=database-persistence/component=transaction:add(mode=BATCH)")
                     .setup("/subsystem=infinispan/cache-container=web/invalidation-cache=database-persistence/component=locking:add(isolation=REPEATABLE_READ)")
+                    .setup("/subsystem=distributable-web/infinispan-session-management=database:add(cache-container=web, cache=database-persistence, granularity=SESSION, routing=OWNER)")
+                    .teardown("/subsystem=distributable-web/infinispan-session-management=database:remove")
                     .teardown("/subsystem=infinispan/cache-container=web/invalidation-cache=database-persistence:remove")
                     .teardown("/subsystem=datasources/data-source=web-sessions-ds:remove");
         }
