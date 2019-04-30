@@ -542,7 +542,6 @@
                                             <model>standalone</model>
                                             <name>standalone-load-balancer.xml</name>
                                             <layers>
-                                                <layer>cloud-server</layer>
                                                 <layer>undertow-load-balancer</layer>
                                             </layers>
                                         </config>

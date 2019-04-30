@@ -31,13 +31,14 @@ import org.infinispan.manager.EmbeddedCacheManager;
 import org.jboss.as.clustering.controller.CapabilityProvider;
 import org.jboss.as.clustering.controller.CapabilityReference;
 import org.jboss.as.clustering.controller.ChildResourceDefinition;
+import org.jboss.as.clustering.controller.CommonRequirement;
 import org.jboss.as.clustering.controller.ManagementResourceRegistration;
 import org.jboss.as.clustering.controller.MetricHandler;
 import org.jboss.as.clustering.controller.Operations;
 import org.jboss.as.clustering.controller.ResourceDescriptor;
-import org.jboss.as.clustering.controller.SimpleResourceRegistration;
 import org.jboss.as.clustering.controller.ResourceServiceHandler;
 import org.jboss.as.clustering.controller.ServiceValueExecutorRegistry;
+import org.jboss.as.clustering.controller.SimpleResourceRegistration;
 import org.jboss.as.clustering.controller.UnaryRequirementCapability;
 import org.jboss.as.clustering.controller.transform.OperationTransformer;
 import org.jboss.as.clustering.controller.transform.SimpleOperationTransformer;
@@ -54,6 +55,7 @@ import org.jboss.as.controller.PathElement;
 import org.jboss.as.controller.SimpleAttributeDefinitionBuilder;
 import org.jboss.as.controller.SimpleOperationDefinitionBuilder;
 import org.jboss.as.controller.StringListAttributeDefinition;
+import org.jboss.as.controller.capability.RuntimeCapability;
 import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
 import org.jboss.as.controller.operations.common.Util;
 import org.jboss.as.controller.operations.global.ListOperations;
@@ -80,20 +82,30 @@ public class CacheContainerResourceDefinition extends ChildResourceDefinition<Ma
         return PathElement.pathElement("cache-container", containerName);
     }
 
-    enum Capability implements CapabilityProvider {
-        CONTAINER(InfinispanRequirement.CONTAINER),
+    enum Capability implements CapabilityProvider, UnaryOperator<RuntimeCapability.Builder<Void>> {
+        CONTAINER(InfinispanRequirement.CONTAINER) {
+            @Override
+            public RuntimeCapability.Builder<Void> apply(RuntimeCapability.Builder<Void> builder) {
+                return builder.addRequirements(CommonRequirement.MICROPROFILE_CONFIG.getName());
+            }
+        },
         CONFIGURATION(InfinispanRequirement.CONFIGURATION),
         KEY_AFFINITY_FACTORY(InfinispanRequirement.KEY_AFFINITY_FACTORY),
         ;
         private final org.jboss.as.clustering.controller.Capability capability;
 
         Capability(UnaryRequirement requirement) {
-            this.capability = new UnaryRequirementCapability(requirement);
+            this.capability = new UnaryRequirementCapability(requirement, this);
         }
 
         @Override
         public org.jboss.as.clustering.controller.Capability getCapability() {
             return this.capability;
+        }
+
+        @Override
+        public RuntimeCapability.Builder<Void> apply(RuntimeCapability.Builder<Void> builder) {
+            return builder;
         }
     }
 
