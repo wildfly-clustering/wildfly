@@ -22,9 +22,11 @@
 
 package org.jboss.as.clustering.controller;
 
+import java.util.Collection;
 import java.util.Map;
 
 import org.jboss.as.controller.AttributeDefinition;
+import org.jboss.as.controller.ModelOnlyWriteAttributeHandler;
 import org.jboss.as.controller.OperationDefinition;
 import org.jboss.as.controller.OperationStepHandler;
 import org.jboss.as.controller.operations.global.ListOperations;
@@ -66,6 +68,14 @@ public class ResourceRegistration implements Registration<ManagementResourceRegi
         // Register attributes with custom write-attribute handlers
         for (Map.Entry<AttributeDefinition, OperationStepHandler> entry : this.descriptor.getCustomAttributes().entrySet()) {
             registration.registerReadWriteAttribute(entry.getKey(), null, entry.getValue());
+        }
+
+        Collection<AttributeDefinition> ignoredAttributes = this.descriptor.getIgnoredAttributes();
+        if (!ignoredAttributes.isEmpty()) {
+            for (AttributeDefinition ignoredAttribute : ignoredAttributes) {
+                // TODO consolidate write handler instances as soon as ModelOnlyWriteAttributeHandler accepts a collection
+                registration.registerReadWriteAttribute(ignoredAttribute, null, new ModelOnlyWriteAttributeHandler(ignoredAttribute));
+            }
         }
 
         // Register attribute translations
