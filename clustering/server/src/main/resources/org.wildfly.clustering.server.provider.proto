@@ -1,0 +1,7 @@
+package org.wildfly.clustering.server.provider;
+
+/**
+ * @TypeId(140)
+ */
+message GetLocalServicesCommand {
+}

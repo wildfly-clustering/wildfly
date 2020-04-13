@@ -28,6 +28,9 @@ import org.jboss.msc.service.ServiceName;
 import org.junit.Test;
 import org.wildfly.clustering.infinispan.spi.persistence.KeyFormatTester;
 import org.wildfly.clustering.marshalling.ExternalizerTester;
+import org.wildfly.clustering.marshalling.Tester;
+import org.wildfly.clustering.marshalling.jboss.JBossMarshallingTesterFactory;
+import org.wildfly.clustering.marshalling.protostream.ProtoStreamTesterFactory;
 import org.wildfly.clustering.server.singleton.ServiceNameResolver.ServiceNameExternalizer;
 import org.wildfly.clustering.server.singleton.ServiceNameResolver.ServiceNameKeyFormat;
 
@@ -36,12 +39,18 @@ import org.wildfly.clustering.server.singleton.ServiceNameResolver.ServiceNameKe
  * @author Paul Ferraro
  */
 public class ServiceNameResolverTestCase {
+    private final ServiceName name = ServiceName.JBOSS.append("foo", "bar");
 
     @Test
     public void test() throws IOException {
-        ServiceName name = ServiceName.JBOSS.append("service");
+        this.test(new ExternalizerTester<>(new ServiceNameExternalizer()));
+        this.test(new KeyFormatTester<>(new ServiceNameKeyFormat()));
 
-        new ExternalizerTester<>(new ServiceNameExternalizer()).test(name);
-        new KeyFormatTester<>(new ServiceNameKeyFormat()).test(name);
+        this.test(new JBossMarshallingTesterFactory(this.getClass().getClassLoader()).createTester());
+        this.test(new ProtoStreamTesterFactory(this.getClass().getClassLoader()).createTester());
+    }
+
+    private void test(Tester<ServiceName> tester) throws IOException {
+        tester.test(this.name);
     }
 }

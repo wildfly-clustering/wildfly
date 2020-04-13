@@ -1,0 +1,8 @@
+package org.wildfly.clustering.server.registry;
+
+/**
+ * @TypeId(145)
+ */
+enum CacheRegistryFilter {
+	INSTANCE	= 0;
+}

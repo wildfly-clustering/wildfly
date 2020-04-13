@@ -1,0 +1,8 @@
+package org.jboss.msc.service;
+
+/**
+ * @TypeId(150)
+ */
+message ServiceName {
+	required	string	name	= 1;
+}

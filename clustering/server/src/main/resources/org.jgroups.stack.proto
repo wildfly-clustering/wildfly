@@ -1,0 +1,15 @@
+package org.jgroups.stack;
+
+/**
+ * @TypeId(137)
+ */
+message IpAddress {
+	required	bytes	address	= 1;
+}
+
+/**
+ * @TypeId(138)
+ */
+message IpAddressUUID {
+	required	bytes	address	= 1;
+}

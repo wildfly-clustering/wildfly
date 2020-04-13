@@ -1,0 +1,15 @@
+package org.infinispan.remoting.transport.jgroups;
+
+/**
+ * @TypeId(134)
+ */
+message JGroupsAddress {
+	required	bytes	address	= 1;
+}
+
+/**
+ * @TypeId(135)
+ */
+message JGroupsTopologyAwareAddress {
+	required	bytes	address	= 1;
+}

@@ -1,0 +1,7 @@
+package org.infinispan.remoting.transport;
+
+/**
+ * @TypeId(133)
+ */
+message LocalModeAddress {
+}

@@ -1,6 +1,10 @@
 /*
  * JBoss, Home of Professional Open Source.
+<<<<<<< HEAD
  * Copyright 2019, Red Hat, Inc., and individual contributors
+=======
+ * Copyright 2020, Red Hat, Inc., and individual contributors
+>>>>>>> 9aad2a3ba7... ProtoStream support for wildfly-clustering-server module
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
