@@ -1,0 +1,13 @@
+package org.jboss.as.network;
+
+import "java.net.proto";
+
+/**
+ * @TypeId(330)
+ */
+message ClientMapping {
+	required	java.net.InetAddress	address = 1;
+	required	int32	sourceMask	= 2;
+	required	string	destAddress	= 3;
+	required	int32	destPort	= 4;
+}
