@@ -36,13 +36,13 @@
         <version>21.0.0.Beta1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>wildfly-clustering-marshalling-jboss</artifactId>
+    <artifactId>wildfly-clustering-marshalling-protostream</artifactId>
     <packaging>jar</packaging>
 
-    <name>WildFly: Marshalling for WildFly clustering: JBoss Marshalling integration</name>
+    <name>WildFly: Marshalling for WildFly clustering: ProtoStream integration</name>
     <description>
-        Adapts implementations of wildfly-clustering-marshalling-api to JBoss Marshalling.
-        Also contains wildfly-clustering-marshalling-spi implementations using JBoss Marshalling.
+        Adapts implementations of wildfly-clustering-marshalling-api to ProtoStream.
+        Also contains wildfly-clustering-marshalling-spi implementations using ProtoStream.
     </description>
 
     <dependencies>
@@ -55,27 +55,32 @@
             <artifactId>wildfly-clustering-marshalling-spi</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.jboss.marshalling</groupId>
-            <artifactId>jboss-marshalling</artifactId>
+            <groupId>org.infinispan.protostream</groupId>
+            <artifactId>protostream</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.wildfly</groupId>
+            <groupId>org.jboss.modules</groupId>
+            <artifactId>jboss-modules</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>wildfly-clustering-marshalling-api</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <classifier>tests</classifier>
         </dependency>
         <dependency>
-            <groupId>org.wildfly</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>wildfly-clustering-marshalling-spi</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <classifier>tests</classifier>
         </dependency>
         <dependency>
-            <groupId>org.jboss.marshalling</groupId>
-            <artifactId>jboss-marshalling-river</artifactId>
+            <groupId>org.kohsuke.metainf-services</groupId>
+            <artifactId>metainf-services</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
+
 </project>
