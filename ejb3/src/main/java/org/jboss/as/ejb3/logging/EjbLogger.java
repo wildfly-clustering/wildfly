@@ -3212,4 +3212,7 @@ public interface EjbLogger extends BasicLogger {
     @LogMessage(level = ERROR)
     @Message(id = 517, value = "[EJB3.2 spec, section 4.1] Spec violation for class %s. Session EJBs should have only one of the following types : Stateful, Stateless, Singleton.")
     void typeSpecViolation(String className);
+
+    @Message(id = 518, value = "Legacy host does not support multiple values for attributes: %s")
+    String multipleValuesNotSupported(Set<String> attributes);
 }
