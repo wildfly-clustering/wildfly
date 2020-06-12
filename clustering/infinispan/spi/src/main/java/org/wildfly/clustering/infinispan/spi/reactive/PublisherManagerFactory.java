@@ -20,28 +20,24 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.wildfly.clustering.server.group;
+package org.wildfly.clustering.infinispan.spi.reactive;
 
-import java.io.IOException;
-
-import org.infinispan.remoting.transport.jgroups.JGroupsAddress;
-import org.jgroups.util.UUID;
-import org.junit.Test;
-import org.wildfly.clustering.infinispan.spi.persistence.KeyFormatTester;
-import org.wildfly.clustering.marshalling.ExternalizerTester;
-import org.wildfly.clustering.server.group.JGroupsAddressSerializer.JGroupsAddressExternalizer;
-import org.wildfly.clustering.server.group.JGroupsAddressSerializer.JGroupsAddressKeyFormat;
+import org.infinispan.factories.annotations.DefaultFactoryFor;
+import org.infinispan.reactive.publisher.impl.ClusterPublisherManager;
+import org.infinispan.reactive.publisher.impl.LocalPublisherManager;
 
 /**
+ * Because we override Infinispan's KeyPartition for non-tx invalidation-caches, we need to make sure the {@link org.infinispan.factories.PublisherManagerFactory.LOCAL_CLUSTER_PUBLISHER}
+ * handles segmentation in the same way.
  * @author Paul Ferraro
  */
-public class JGroupsAddressSerializerTestCase {
-
-    @Test
-    public void test() throws IOException {
-        JGroupsAddress address = new JGroupsAddress(UUID.randomUUID());
-
-        new ExternalizerTester<>(new JGroupsAddressExternalizer()).test(address);
-        new KeyFormatTester<>(new JGroupsAddressKeyFormat()).test(address);
-    }
+@DefaultFactoryFor(classes = {LocalPublisherManager.class, ClusterPublisherManager.class}, names = org.infinispan.factories.PublisherManagerFactory.LOCAL_CLUSTER_PUBLISHER)
+public class PublisherManagerFactory extends org.infinispan.factories.PublisherManagerFactory {
+    @Override
+    public Object construct(String componentName) {
+        if (componentName.equals(LOCAL_CLUSTER_PUBLISHER)) {
+            return new LocalClusterPublisherManager<>();
+        }
+        return super.construct(componentName);
+   }
 }

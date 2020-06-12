@@ -33,9 +33,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.infinispan.Cache;
-import org.infinispan.configuration.cache.Configuration;
-import org.infinispan.configuration.cache.ConfigurationBuilder;
 import org.infinispan.configuration.global.GlobalConfiguration;
+import org.infinispan.configuration.global.GlobalConfigurationBuilder;
+import org.infinispan.configuration.parsing.ConfigurationBuilderHolder;
 import org.infinispan.manager.DefaultCacheManager;
 import org.infinispan.manager.EmbeddedCacheManager;
 import org.infinispan.notifications.Listener;
@@ -109,9 +109,12 @@ public class CacheContainerServiceConfigurator extends CapabilityServiceNameProv
     public EmbeddedCacheManager get() {
         GlobalConfiguration config = this.configuration.get();
         String defaultCacheName = config.defaultCacheName().orElse(null);
+        ConfigurationBuilderHolder holder = new ConfigurationBuilderHolder(config.classLoader(), new GlobalConfigurationBuilder().read(config));
         // We need to create a dummy default configuration if cache has a default cache
-        Configuration defaultConfiguration = (defaultCacheName != null) ? new ConfigurationBuilder().build() : null;
-        EmbeddedCacheManager manager = new DefaultCacheManager(config, defaultConfiguration, false);
+        if (defaultCacheName != null) {
+            holder.newConfigurationBuilder(defaultCacheName);
+        }
+        EmbeddedCacheManager manager = new DefaultCacheManager(holder, false);
         // Undefine the default cache, if we defined one
         if (defaultCacheName != null) {
             manager.undefineConfiguration(defaultCacheName);

@@ -24,7 +24,6 @@ package org.wildfly.clustering.web.infinispan.session;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -83,7 +82,6 @@ public class InfinispanSessionManager<S, SC, AL, MV, AV, LC> implements SessionM
     private final SessionFactory<SC, MV, AV, LC> factory;
     private final IdentifierFactory<String> identifierFactory;
     private final Scheduler<String, ImmutableSessionMetaData> expirationScheduler;
-    private final Predicate<Object> filter = new SessionCreationMetaDataKeyFilter();
     private final Recordable<ImmutableSession> recorder;
     private final SC context;
     private final SpecificationProvider<S, SC, AL> provider;
@@ -114,7 +112,7 @@ public class InfinispanSessionManager<S, SC, AL, MV, AV, LC> implements SessionM
         }
         this.identifierFactory.start();
         this.expirationRegistration = this.expirationRegistrar.register(this.expirationListener);
-        CacheEventFilter<Object, Object> filter = new PredicateKeyFilter<>(this.filter);
+        CacheEventFilter<Object, Object> filter = new PredicateKeyFilter<>(SessionCreationMetaDataKeyFilter.INSTANCE);
         this.cache.addListener(this, filter, null);
         this.cache.addListener(this.factory.getMetaDataFactory(), filter, null);
         this.cache.addListener(this.factory.getAttributesFactory(), filter, null);
@@ -204,7 +202,7 @@ public class InfinispanSessionManager<S, SC, AL, MV, AV, LC> implements SessionM
     private Set<String> getSessions(Flag... flags) {
         Locality locality = new CacheLocality(this.cache);
         try (Stream<Key<String>> keys = this.cache.getAdvancedCache().withFlags(flags).keySet().stream()) {
-            return keys.filter(this.filter.and(key -> locality.isLocal(key))).map(key -> key.getId()).collect(Collectors.toSet());
+            return keys.filter(SessionCreationMetaDataKeyFilter.INSTANCE.and(key -> locality.isLocal(key))).map(key -> key.getId()).collect(Collectors.toSet());
         }
     }
 
